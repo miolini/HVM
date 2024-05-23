@@ -137,6 +137,10 @@ func get_snd(pair: Pair) -> Port {
 // Define your rules here
 let LINK: Rule = 1
 let CALL: Rule = 2
+let COMM: Rule = 3
+let OPER: Rule = 4
+let SWIT: Rule = 5
+let VOID: Rule = 6
 
 func get_rule(a: Port, b: Port) -> Rule {
     // Your logic to determine the rule
@@ -154,6 +158,26 @@ func interact_call(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
     return true
 }
 
+func interact_comm(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
+    // Your optimized interaction logic here
+    return true
+}
+
+func interact_oper(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
+    // Your optimized interaction logic here
+    return true
+}
+
+func interact_swit(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
+    // Your optimized interaction logic here
+    return true
+}
+
+func interact_void(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
+    // Your optimized interaction logic here
+    return true
+}
+
 // Additional interactions...
 
 func interact(net: inout Net, tm: inout TM, redex: Pair) -> Bool {
@@ -167,7 +191,14 @@ func interact(net: inout Net, tm: inout TM, redex: Pair) -> Bool {
         success = interact_link(net: &net, tm: &tm, a: a, b: b)
     case CALL:
         success = interact_call(net: &net, tm: &tm, a: a, b: b)
-    // Add other cases...
+    case COMM:
+        success = interact_comm(net: &net, tm: &tm, a: a, b: b)
+    case OPER:
+        success = interact_oper(net: &net, tm: &tm, a: a, b: b)
+    case SWIT:
+        success = interact_swit(net: &net, tm: &tm, a: a, b: b)
+    case VOID:
+        success = interact_void(net: &net, tm: &tm, a: a, b: b)
     default:
         success = false
     }
@@ -201,7 +232,8 @@ func evaluate(gnet: inout GNet) {
     computeEncoder.setComputePipelineState(pipelineState)
     
     // Bind the gnet buffer to the GPU
-    let gnetBuffer = device.makeBuffer(bytes: &gnet, length: MemoryLayout<GNet>.size, options: [])!
+    let gnetData = NSData(bytes: &gnet, length: MemoryLayout<GNet>.size)
+    let gnetBuffer = device.makeBuffer(bytes: gnetData.bytes, length: gnetData.length, options: [])!
     computeEncoder.setBuffer(gnetBuffer, offset: 0, index: 0)
     
     let gridSize = MTLSize(width: Int(TPB), height: Int(BPG), depth: 1)

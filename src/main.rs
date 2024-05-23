@@ -132,7 +132,7 @@ fn main() {
       unsafe {
         hvm_m(data.as_mut_ptr() as *mut u32, run_io);
       }
-      #[cfg(not(feature = "cuda"))]
+      #[cfg(not(feature = "metal"))]
       println!("Metal runtime not available!\n If you've installed Metal after HVM, please reinstall HVM.");
     }
     Some(("gen-c", sub_matches)) => {

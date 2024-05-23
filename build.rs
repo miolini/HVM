@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::env;
 
 fn main() {
     let cores = num_cpus::get();
@@ -22,9 +23,8 @@ fn main() {
         }
     }
 
-    // Builds hvm.cu
     if Command::new("nvcc").arg("--version").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().is_ok() {
-        if let Ok(cuda_path) = std::env::var("CUDA_HOME") {
+        if let Ok(cuda_path) = env::var("CUDA_HOME") {
             println!("cargo:rustc-link-search=native={}/lib64", cuda_path);
         } else {
             println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
@@ -33,9 +33,9 @@ fn main() {
         cc::Build::new()
             .cuda(true)
             .file("src/hvm.cu")
-            .flag("-diag-suppress=177") // variable was declared but never referenced
-            .flag("-diag-suppress=550") // variable was set but never used
-            .flag("-diag-suppress=20039") // a __host__ function redeclared with __device__, hence treated as a __host__ __device__ function
+            .flag("-diag-suppress=177")
+            .flag("-diag-suppress=550")
+            .flag("-diag-suppress=20039")
             .compile("hvm-cu");
 
         println!("cargo:rustc-cfg=feature=\"cuda\"");
@@ -43,14 +43,21 @@ fn main() {
         println!("cargo:warning=\x1b[1m\x1b[31mWARNING: CUDA compiler not found.\x1b[0m \x1b[1mHVM will not be able to run on GPU.\x1b[0m");
     }
 
-    // Check for Apple Metal
     if cfg!(target_os = "macos") {
+        println!("Compiling Swift files...");
         let swiftc_status = Command::new("swiftc")
-            .args(&["src/hvm.swift", "src/main.swift", "-emit-library", "-o", "target/libhvm_metal.dylib"])
+            .args(&["src/hvm.swift", "-emit-library", "-o", "target/libhvm_metal.dylib"])
             .status();
 
         match swiftc_status {
             Ok(status) if status.success() => {
+                println!("Swift files compiled successfully.");
+                println!("Checking if target/libhvm_metal.dylib exists...");
+                if std::path::Path::new("target/libhvm_metal.dylib").exists() {
+                    println!("Library found at target/libhvm_metal.dylib.");
+                } else {
+                    println!("Library not found at target/libhvm_metal.dylib.");
+                }
                 println!("cargo:rustc-link-search=native=target");
                 println!("cargo:rustc-link-lib=dylib=hvm_metal");
                 println!("cargo:rustc-cfg=feature=\"metal\"");

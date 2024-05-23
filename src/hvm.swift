@@ -1,54 +1,82 @@
-import Metal
+import MetalKit
 import Foundation
 
 @_cdecl("hvm_m")
 public func hvm_m(_ book_buffer: UnsafePointer<UInt32>?) {
-    // Start the timer
+    print("hvm_m called with buffer: \(String(describing: book_buffer))")
     let start = CFAbsoluteTimeGetCurrent()
 
-    // Create a device
     guard let device = MTLCreateSystemDefaultDevice() else {
-        fatalError("Metal is not supported on this device")
+        fatalError("No default Metal device found. Metal is not supported on this device.")
     }
+    print("Default Metal device: \(device.name)")
 
-    // Load the book (dummy implementation for now)
+    // Load the book
+    guard let buffer = book_buffer else {
+        fatalError("No book buffer provided")
+    }
+    
+    // Print the full string from the buffer
+    var bufferString = ""
+    var uint32Buffer = buffer
+    while true {
+        let uint32Value = uint32Buffer.pointee
+        if uint32Value == 0 { // assuming null-terminated string
+            break
+        }
+        if let scalar = UnicodeScalar(uint32Value) {
+            bufferString.append(String(scalar).first!)
+        } else {
+            bufferString.append("?")
+        }
+        uint32Buffer += 1
+    }
+    print("Buffer string: \(bufferString)")
+
     _ = Book(buffer: book_buffer)
+    print("Book loaded.")
 
     // Create a command queue
     guard device.makeCommandQueue() != nil else {
-        fatalError("Failed to create command queue")
+        fatalError("Failed to create command queue.")
     }
+    print("Command queue created successfully.")
 
-    // Create a new GNet (dummy implementation for now)
+    // Create and operate on GNet
     let gnet = GNet()
-
-    // Boot root redex to expand @main (dummy implementation for now)
     gnet.bootRedex()
-
-    // Normalize the GNet (dummy implementation for now)
     gnet.normalize()
 
-    // Stop the timer
+    // Timing and result output
     let end = CFAbsoluteTimeGetCurrent()
     let duration = end - start
 
-    // Print the result (dummy implementation for now)
     gnet.printResult()
-
-    // Print interactions, time, and MIPS (dummy implementation for now)
     let itrs = gnet.getItrs()
+
     print("- ITRS: \(itrs)")
     print("- LEAK: \(gnet.getLeak())")
     print("- TIME: \(String(format: "%.2f", duration))s")
     print("- MIPS: \(String(format: "%.2f", Double(itrs) / duration / 1_000_000.0))")
 }
 
-// Dummy Book class for the sake of example
+func getLoadedLibraries() -> [String]? {
+    let imageCount = _dyld_image_count()
+    var libraries = [String]()
+
+    for i in 0..<imageCount {
+        if let cString = _dyld_get_image_name(i) {
+            let name = String(cString: cString)
+            libraries.append(name)
+        }
+    }
+
+    return libraries
+}
+
 class Book {
     init(buffer: UnsafePointer<UInt32>?) {
-        // Load book from buffer (dummy implementation)
         if let buffer = buffer {
-            // Real implementation would parse the buffer
             print("Book loaded with buffer: \(buffer)")
         } else {
             print("No book buffer provided")
@@ -56,30 +84,24 @@ class Book {
     }
 }
 
-// Dummy GNet class for the sake of example
 class GNet {
     func bootRedex() {
-        // Boot root redex (dummy implementation)
         print("Booted root redex")
     }
 
     func normalize() {
-        // Normalize the GNet (dummy implementation)
         print("Normalized GNet")
     }
 
     func printResult() {
-        // Print the result (dummy implementation)
         print("Result: (dummy)")
     }
 
     func getItrs() -> UInt64 {
-        // Return interaction count (dummy implementation)
         return 0
     }
 
     func getLeak() -> UInt64 {
-        // Return leak count (dummy implementation)
         return 0
     }
 }

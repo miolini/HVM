@@ -40,7 +40,9 @@ fn main() {
 
         println!("cargo:rustc-cfg=feature=\"cuda\"");
     } else {
+      if cfg!(target_os = "linux") {
         println!("cargo:warning=\x1b[1m\x1b[31mWARNING: CUDA compiler not found.\x1b[0m \x1b[1mHVM will not be able to run on GPU.\x1b[0m");
+      }
     }
 
     if cfg!(target_os = "macos") {

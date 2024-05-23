@@ -22,9 +22,10 @@ num_cpus = "1.0"
 
 [features]
 default = []
-# C and CUDA features are determined during build
+# C, CUDA, and Metal features are determined during build
 c = []
 cuda = []
+metal = []
 
 [dev-dependencies]
 insta = { version = "1.39.0", features = ["glob"] }

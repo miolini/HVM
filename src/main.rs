@@ -19,6 +19,11 @@ extern "C" {
   fn hvm_cu(book_buffer: *const u32, run_io: bool);
 }
 
+#[cfg(feature = "metal")]
+extern "C" {
+  fn hvm_m(book_buffer: *const u32, run_io: bool);
+}
+
 fn main() {
   let matches = Command::new("hvm")
     .about("HVM2: Higher-order Virtual Machine 2 (32-bit Version)")
@@ -47,6 +52,14 @@ fn main() {
           .action(ArgAction::SetTrue)
           .help("Run with IO enabled")))
     .subcommand(
+      Command::new("run-m")
+        .about("Interprets a file (using Apple Metal)")
+        .arg(Arg::new("file").required(true))
+        .arg(Arg::new("io")
+          .long("io")
+          .action(ArgAction::SetTrue)
+          .help("Run with IO enabled")))
+    .subcommand(
       Command::new("gen-c")
         .about("Compiles a file with IO (to standalone C)")
         .arg(Arg::new("file").required(true))
@@ -57,6 +70,14 @@ fn main() {
     .subcommand(
       Command::new("gen-cu")
         .about("Compiles a file (to standalone CUDA)")
+        .arg(Arg::new("file").required(true))
+        .arg(Arg::new("io")
+          .long("io")
+          .action(ArgAction::SetTrue)
+          .help("Generate with IO enabled")))
+    .subcommand(
+      Command::new("gen-m")
+        .about("Compiles a file (to standalone Apple Metal)")
         .arg(Arg::new("file").required(true))
         .arg(Arg::new("io")
           .long("io")
@@ -99,6 +120,20 @@ fn main() {
       }
       #[cfg(not(feature = "cuda"))]
       println!("CUDA runtime not available!\n If you've installed CUDA and nvcc after HVM, please reinstall HVM.");
+    }
+    Some(("run-m", sub_matches)) => {
+      let file = sub_matches.get_one::<String>("file").expect("required");
+      let code = fs::read_to_string(file).expect("Unable to read file");
+      let book = ast::Book::parse(&code).unwrap_or_else(|er| panic!("{}",er)).build();
+      let mut data : Vec<u8> = Vec::new();
+      book.to_buffer(&mut data);
+      let run_io = sub_matches.get_flag("io");
+      #[cfg(feature = "metal")]
+      unsafe {
+        hvm_m(data.as_mut_ptr() as *mut u32, run_io);
+      }
+      #[cfg(not(feature = "cuda"))]
+      println!("Metal runtime not available!\n If you've installed Metal after HVM, please reinstall HVM.");
     }
     Some(("gen-c", sub_matches)) => {
       // Reads book from file
@@ -154,6 +189,37 @@ fn main() {
       let hvm_c = include_str!("hvm.cu");
       let hvm_c = hvm_c.replace("//COMPILED_BOOK_BUF//", &bookb);
       let hvm_c = hvm_c.replace("#define WITHOUT_MAIN", "#define WITH_MAIN");
+      let runio = sub_matches.get_flag("io");
+      let hvm_c = if runio {
+        hvm_c.replace("#define DONT_RUN_IO", "#define RUN_IO")
+      } else {
+        hvm_c.replace("#define RUN_IO", "#define DONT_RUN_IO")
+      };
+      println!("{}", hvm_c);
+    }
+    Some(("gen-m", sub_matches)) => {
+      // Reads book from file
+      let file = sub_matches.get_one::<String>("file").expect("required");
+      let code = fs::read_to_string(file).expect("Unable to read file");
+      let book = ast::Book::parse(&code).unwrap_or_else(|er| panic!("{}",er)).build();
+
+      // Gets optimal core count
+      let cores = num_cpus::get();
+      let tpcl2 = (cores as f64).log2().floor() as u32;
+
+      // Generates the interpreted book
+      let mut book_buf : Vec<u8> = Vec::new();
+      book.to_buffer(&mut book_buf);
+      let bookb = format!("{:?}", book_buf).replace("[","{").replace("]","}");
+      let bookb = format!("static const u8 BOOK_BUF[] = {};", bookb);
+
+      // Generates the C file
+      let hvm_c = include_str!("hvm.c");
+      let hvm_c = hvm_c.replace("///COMPILED_INTERACT_CALL///", &cmp::compile_book(cmp::Target::C, &book));
+      let hvm_c = hvm_c.replace("#define INTERPRETED", "#define COMPILED");
+      let hvm_c = hvm_c.replace("//COMPILED_BOOK_BUF//", &bookb);
+      let hvm_c = hvm_c.replace("#define WITHOUT_MAIN", "#define WITH_MAIN");
+      let hvm_c = hvm_c.replace("#define TPC_L2 0", &format!("#define TPC_L2 {} // {} cores", tpcl2, cores));
       let runio = sub_matches.get_flag("io");
       let hvm_c = if runio {
         hvm_c.replace("#define DONT_RUN_IO", "#define RUN_IO")

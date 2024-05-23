@@ -1,4 +1,4 @@
-import Metal
+import MetalKit
 
 // MARK: - Type Definitions
 typealias u8 = UInt8
@@ -178,8 +178,6 @@ func interact_void(net: inout Net, tm: inout TM, a: Port, b: Port) -> Bool {
     return true
 }
 
-// Additional interactions...
-
 func interact(net: inout Net, tm: inout TM, redex: Pair) -> Bool {
     let a = get_fst(pair: redex)
     let b = get_snd(pair: redex)
@@ -244,4 +242,70 @@ func evaluate(gnet: inout GNet) {
     
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
+}
+
+@_cdecl("hvm_m")
+public func hvm_m(_ book_buffer: UnsafePointer<UInt32>?) {
+    print("hvm_m called with buffer: \(String(describing: book_buffer))")
+    let start = CFAbsoluteTimeGetCurrent()
+
+    guard let device = MTLCreateSystemDefaultDevice() else {
+        fatalError("No default Metal device found. Metal is not supported on this device.")
+    }
+    print("Default Metal device: \(device.name)")
+
+    // Load the book
+    guard let buffer = book_buffer else {
+        fatalError("No book buffer provided")
+    }
+    
+    // Print the full string from the buffer
+    var bufferString = ""
+    var uint32Buffer = buffer
+    while true {
+        let uint32Value = uint32Buffer.pointee
+        if uint32Value == 0 { // assuming null-terminated string
+            break
+        }
+        if let scalar = UnicodeScalar(uint32Value) {
+            bufferString.append(String(scalar).first!)
+        } else {
+            bufferString.append("?")
+        }
+        uint32Buffer += 1
+    }
+    print("Buffer string: \(bufferString)")
+
+    let book = Book(defs_len: 0, defs_buf: [])
+    print("Book loaded.")
+
+    // Create a command queue
+    guard device.makeCommandQueue() != nil else {
+        fatalError("Failed to create command queue.")
+    }
+    print("Command queue created successfully.")
+
+    // Create and operate on GNet
+    let gnet = GNet(
+        rbag_use_A: 0, rbag_use_B: 0, rbag_buf_A: [], rbag_buf_B: [], 
+        node_buf: [], vars_buf: [], node_put: [], vars_put: [], 
+        rbag_pos: [], mode: 0, itrs: 0, iadd: 0, leak: 0, 
+        turn: 0, down: 0, rdec: 0
+    )
+    // Placeholder for bootRedex and normalize methods
+    // gnet.bootRedex()
+    // gnet.normalize()
+
+    // Timing and result output
+    let end = CFAbsoluteTimeGetCurrent()
+    let duration = end - start
+
+    // Placeholder for printResult and getItrs methods
+    // gnet.printResult()
+    let itrs = 0 // gnet.getItrs()
+
+    print("- ITRS: \(itrs)")
+    print("- LEAK: \(gnet.leak)")
+    print("- TIME: \(String(format: "%.2f", duration))s")
+    print("- MIPS: \(String(format: "%.2f", Double(itrs) / duration / 1_000_000.0))")
 }

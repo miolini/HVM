@@ -107,7 +107,7 @@ impl<'i> CoreParser<'i> {
       input.parse::<u64>().map_err(|err| format!("{err:?}"))
     }
   }
-  
+
   pub fn parse_numb(&mut self) -> Result<Numb, String> {
     self.skip_trivia();
 
@@ -194,7 +194,7 @@ impl<'i> CoreParser<'i> {
     }
     Ok(Net { root, rbag })
   }
-  
+
   pub fn parse_book(&mut self) -> Result<Book, String> {
     let mut defs = BTreeMap::new();
     while !self.is_eof() {
@@ -270,9 +270,9 @@ impl Numb {
       _ => {
         let typ = numb.get_typ();
         let val = numb.get_u24();
-        format!("[{}{:07X}]", match typ {
+        format!("[{}0x{:07X}]", match typ {
           hvm::OP_ADD => "+",
-          hvm::OP_SUB => "-", 
+          hvm::OP_SUB => "-",
           hvm::FP_SUB => ":-",
           hvm::OP_MUL => "*",
           hvm::OP_DIV => "/",
@@ -316,8 +316,8 @@ impl Net {
   pub fn show(&self) -> String {
     let mut s = self.root.show();
     for (par, fst, snd) in &self.rbag {
-      s.push_str(" & ");
-      s.push_str(if *par { "!" } else { "" });
+      s.push_str(" &");
+      s.push_str(if *par { "!" } else { " " });
       s.push_str(&fst.show());
       s.push_str(" ~ ");
       s.push_str(&snd.show());
@@ -362,7 +362,7 @@ impl Tree {
         return Some(Tree::Era);
       }
       hvm::NUM => {
-        return Some(Tree::Num { val: Numb(port.get_val()) });  
+        return Some(Tree::Num { val: Numb(port.get_val()) });
       }
       hvm::CON => {
         let pair = net.node_load(port.get_val() as usize);
@@ -386,7 +386,7 @@ impl Tree {
         let pair = net.node_load(port.get_val() as usize);
         let fst = Tree::readback(net, pair.get_fst(), fids)?;
         let snd = Tree::readback(net, pair.get_snd(), fids)?;
-        return Some(Tree::Swi { fst: Box::new(fst), snd: Box::new(snd) }); 
+        return Some(Tree::Swi { fst: Box::new(fst), snd: Box::new(snd) });
       }
       _ => {
         unreachable!()
@@ -505,18 +505,17 @@ impl Book {
     }
     let mut book = hvm::Book { defs: Vec::new() };
     for (fid, name) in &fid_to_name {
-      if let Some(ast_def) = self.defs.get(name) {
-        let mut def = hvm::Def {
-          name: name.clone(),
-          safe: true,
-          root: hvm::Port(0),
-          rbag: vec![],
-          node: vec![],
-          vars: 0,
-        };
-        ast_def.build(&mut def, &name_to_fid, &mut BTreeMap::new());
-        book.defs.push(def);
-      }
+      let ast_def = self.defs.get(name).expect("missing `@main` definition");
+      let mut def = hvm::Def {
+        name: name.clone(),
+        safe: true,
+        root: hvm::Port(0),
+        rbag: vec![],
+        node: vec![],
+        vars: 0,
+      };
+      ast_def.build(&mut def, &name_to_fid, &mut BTreeMap::new());
+      book.defs.push(def);
     }
     return book;
   }
